@@ -1,0 +1,194 @@
+version: '3.8'
+
+services:
+  # Pub/Sub Messaging Pipeline (redis://redis:6379)
+  redis:
+    image: redis:7-alpine
+    container_name: hermes_redis
+    command: redis-server --appendonly yes --appendfsync everysec
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+  # Vector Knowledge Base
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: hermes_chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadb_data:/index_data
+    restart: always
+
+  # Zeromq MT5 Gateway Bridge
+  mt5_bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hermes_mt5_bridge
+    command: python -m services.mt5_bridge
+    ports:
+      - "5558:5558"
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    restart: always
+
+  # Obsidian Knowledge RAG Ingestor
+  doc_ingestor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hermes_doc_ingestor
+    command: python -m services.doc_ingestor
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - chromadb
+    restart: always
+
+  # Vector Embeddings Generator
+  embedder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hermes_embedder
+    command: python -m services.embedder
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - chromadb
+    restart: always
+
+  # Market Tick/Bar preprocessor & SMC Structure Identifier
+  preprocessor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hermes_preprocessor
+    command: python -m services.preprocessor
+    ports:
+      - "5559:5559"
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    restart: always
+
+  # Backtester Engine
+  backtester:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hermes_backtester
+    command: python -m services.backtester
+    ports:
+      - "5560:5560"
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    restart: always
+
+  # Stage Trust: Paper Trading Engine
+  paper_trader:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hermes_paper_trader
+    command: python -m services.paper_trader
+    ports:
+      - "5561:5561"
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    restart: always
+
+  # Model Context Protocol Graph Bridge
+  mcp_bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hermes_mcp_bridge
+    command: python -m services.mcp_bridge
+    ports:
+      - "5562:5562"
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    restart: always
+
+  # Risk Compliance & Order Execution Module (SMC Rule-checks)
+  execution:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hermes_execution
+    command: python -m services.execution
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    restart: always
+
+  # Web Dashboard (Flask + HTMX + SSE Integration console)
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hermes_dashboard
+    command: python -m dashboard.app
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    restart: always
+
+volumes:
+  redis_data:
+  chromadb_data:

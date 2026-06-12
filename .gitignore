@@ -1,0 +1,46 @@
+# React/Vite/Node elements
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+
+# Sensitive Credentials
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Python elements
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Docker & Volume Cache/Data stores (avoid committing persistent databases)
+data/
+chromadb_data/
+redis_data/
+.pytest_cache/
+.tox/
+.coverage
+htmlcov/
